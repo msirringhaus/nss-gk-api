@@ -8,6 +8,7 @@
 #![warn(clippy::pedantic)]
 
 use bindgen::Builder;
+use bindgen::RustTarget;
 use serde_derive::Deserialize;
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -238,6 +239,7 @@ fn build_bindings(base: &str, bindings: &Bindings, flags: &[String], gecko: bool
     let mut builder = Builder::default().header(header);
     builder = builder.generate_comments(false);
     builder = builder.size_t_is_usize(true);
+    builder = builder.rust_target(RustTarget::Stable_1_73);
 
     builder = builder.clang_arg("-v");
 
@@ -407,22 +409,28 @@ fn process_config(config: &mut HashMap<String, Bindings>) {
         // declarations must be added for the generated modules.)
         excludes.insert(
             header.clone(),
-            config.iter().flat_map(|(h, b)| {
-                if *h != header {
-                    vec![
-                        &b.types,
-                        &b.functions,
-                        &b.variables,
-                    ]
-                } else {
-                    vec![]
-                }.into_iter().flat_map(|v| v.iter()).cloned()
-            }).collect::<HashSet<String>>()
+            config
+                .iter()
+                .flat_map(|(h, b)| {
+                    if *h != header {
+                        vec![&b.types, &b.functions, &b.variables]
+                    } else {
+                        vec![]
+                    }
+                    .into_iter()
+                    .flat_map(|v| v.iter())
+                    .cloned()
+                })
+                .collect::<HashSet<String>>(),
         );
     }
 
     for (header, excludes) in excludes.into_iter() {
-        config.get_mut(&header).expect("key disappeared from config?").exclude.extend(excludes.into_iter());
+        config
+            .get_mut(&header)
+            .expect("key disappeared from config?")
+            .exclude
+            .extend(excludes.into_iter());
     }
 }
 
